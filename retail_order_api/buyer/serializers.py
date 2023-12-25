@@ -1,15 +1,23 @@
 from rest_framework import serializers
+from decimal import Decimal
 
 from .models import CartPosition, Address, Order, OrderPosition
 from products.models import ProductCard, Product
 
 
 class CartPositionSerializer(serializers.ModelSerializer):
+    price_per_quantity = serializers.DecimalField(max_digits=15, decimal_places=2,
+                                                  min_value=Decimal('0.00'), read_only=True)
 
     class Meta:
         model = CartPosition
         fields = ('product_card', 'quantity', 'price_per_quantity',)
-        read_only_fields = ('price_per_quantity',)
+
+
+    def validate_product_card(self, value):
+        if value.status == 'sold' or value.status == 'withdrawn':
+            raise serializers.ValidationError(f"The product is sold or withdrawn.")
+        return value
 
     def validate(self, data):
         if (data['product_card'].quantity - data['quantity']) < 0:
@@ -20,6 +28,7 @@ class CartPositionSerializer(serializers.ModelSerializer):
 class CartSerializer(serializers.Serializer):
     unvailable_positions = CartPositionSerializer(many=True)
     available_positions = CartPositionSerializer(many=True)
+    total = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=Decimal('0.00'))
 
 
 class CartPositionDeleteSerializer(serializers.ModelSerializer):
@@ -69,12 +78,20 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'positions', 'created_at', 'updated_at', 'status')
 
 
-class OrdersSerializer(serializers.ModelSerializer):
+class OrderListSerializer(serializers.ModelSerializer):
     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
 
     class Meta:
         model = Order
         fields = ('id', 'created_at', 'status',)
+
+
+class OrderNewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ('id',)
+
+
 
 
 

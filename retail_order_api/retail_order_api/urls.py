@@ -16,6 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+from .views import pageNotFound
 
 
 urlpatterns = [
@@ -24,6 +27,12 @@ urlpatterns = [
     path('api/v1/seller/', include('seller.urls', namespace='seller')),
     path('api/v1/buyer/', include('buyer.urls', namespace='buyer')),
     path('api/v1/', include('products.urls', namespace='products')),
+
+    path('api/v1/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/v1/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='docs'),
+
+    path('api/v1/accounts/', include('allauth.urls')),
 ]
 
 
+handler404 = pageNotFound

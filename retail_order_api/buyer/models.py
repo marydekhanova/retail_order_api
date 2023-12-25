@@ -28,7 +28,7 @@ class CartPosition(models.Model):
 
     product_card = models.ForeignKey(ProductCard, on_delete=models.CASCADE, related_name='users_carts')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cart_positions')
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
 
     class Meta:
         verbose_name = "Cart's position"
@@ -88,11 +88,12 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     delivered_at = models.DateTimeField(blank=True, null=True)
-    status = models.CharField(choices=STATUS_CHOICES, max_length=9)
+    status = models.CharField(choices=STATUS_CHOICES, max_length=9, default='new')
     address = models.ForeignKey(Address, on_delete=models.CASCADE, related_name='orders')
 
 
 class OrderPosition(models.Model):
+
     @property
     def price_per_quantity(self):
         return self.price * self.quantity
@@ -101,7 +102,7 @@ class OrderPosition(models.Model):
     price = models.DecimalField(
         verbose_name='Price',
         max_digits=15,
-        decimal_places=5,
+        decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))]
     )
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='positions')

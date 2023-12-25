@@ -3,12 +3,14 @@ from rest_framework.authtoken import views
 
 from .views import (UserView, EmailConfirmation,
                     PasswordResetToken, PasswordReset,
-                    PasswordUpdate, EmailUpdate)
+                    PasswordUpdate, EmailUpdate, CustomObtainAuthToken,
+                    DeleteAuthToken)
 
 
 app_name = 'users'
 urlpatterns = [
-    path('', include('djoser.urls.authtoken')),
+    path('token/obtain/', CustomObtainAuthToken.as_view(), name='token_obtain'),
+    path('token/delete/', DeleteAuthToken.as_view(), name='token_delete'),
     path('email/confirmation/', EmailConfirmation.as_view(), name='email_confirmation'),
     path('', UserView.as_view(), name='user'),
     path('password/reset/token/', PasswordResetToken.as_view(), name='password_reset_token'),

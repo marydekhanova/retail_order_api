@@ -3,9 +3,10 @@ import requests
 
 from products.models import Category, ProductCard
 from buyer.models import OrderPosition, Order, Address
+from .models import Shop
 
 
-class ShopPriceUrlSerializer(serializers.Serializer):
+class ShopPricesUrlSerializer(serializers.Serializer):
     url = serializers.URLField()
 
 
@@ -35,7 +36,7 @@ class GoodSerializer(serializers.ModelSerializer):
         fields = ('id', 'category', 'model', 'name', 'price', 'price_rrc', 'quantity', 'parameters')
 
 
-class ShopPriceSerializer(serializers.Serializer):
+class ShopPricesSerializer(serializers.Serializer):
     shop = serializers.CharField()
     categories = CategorySerializer(many=True)
     goods = GoodSerializer(many=True)
@@ -48,16 +49,12 @@ class ShopPriceSerializer(serializers.Serializer):
         return data
 
 
-class ShopStatusChangeSerializer(serializers.Serializer):
+class ShopStatusSerializer(serializers.ModelSerializer):
     open_for_orders = serializers.BooleanField()
 
-
-class AddressSerializer(serializers.ModelSerializer):
-
     class Meta:
-        model = Address
-        fields = ('city', 'street', 'house', 'building', 'apartment')
-        fiels_read_only = ('id',)
+        model = Shop
+        fields = ('open_for_orders', )
 
 
 class OrdersSerializer(serializers.ModelSerializer):
@@ -83,3 +80,7 @@ class OrdersItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ('id', 'created_at', 'status', 'items')
+
+
+class YamlErrorSerializer(serializers.Serializer):
+    yaml_error = serializers.CharField()

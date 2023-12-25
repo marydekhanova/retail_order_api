@@ -70,12 +70,12 @@ class ProductCard(models.Model):
     )
     price = models.DecimalField(
         max_digits=15,
-        decimal_places=5,
+        decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))]
     )
     price_rrc = models.DecimalField(
         max_digits=15,
-        decimal_places=5,
+        decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))]
     )
     quantity = models.PositiveIntegerField()
