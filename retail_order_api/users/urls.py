@@ -4,7 +4,7 @@ from rest_framework.authtoken import views
 from .views import (UserView, EmailConfirmation,
                     PasswordResetToken, PasswordReset,
                     PasswordUpdate, EmailUpdate, CustomObtainAuthToken,
-                    DeleteAuthToken)
+                    DeleteAuthToken, AvatarView, AvatarDeleteView)
 
 
 app_name = 'users'
@@ -17,4 +17,7 @@ urlpatterns = [
     path('password/reset/', PasswordReset.as_view(), name='password_reset'),
     path('password/update/', PasswordUpdate.as_view(), name='password_update'),
     path('email/update/', EmailUpdate.as_view(), name='email_update'),
+    path('avatar/<str:filename>/', AvatarView.as_view(), name='avatar'),
+    path('avatar/', AvatarDeleteView.as_view(), name='avatar_delete'),
+
 ]

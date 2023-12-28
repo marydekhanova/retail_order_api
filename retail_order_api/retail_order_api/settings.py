@@ -45,17 +45,18 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
 
-    'drf_spectacular',
-
     'users.apps.UsersConfig',
     'products.apps.ProductsConfig',
     'seller.apps.SellerConfig',
     'buyer.apps.BuyerConfig',
 
+    'drf_spectacular',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.yandex',
+    'django_cleanup.apps.CleanupSelectedConfig',
+    'easy_thumbnails',
 ]
 
 
@@ -223,3 +224,7 @@ ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 LOGIN_REDIRECT_URL = 'products:products'
 LOGOUT_REDIRECT_URL = 'products:products'
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')

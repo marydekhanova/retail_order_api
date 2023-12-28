@@ -6,6 +6,8 @@ from django.core.validators import RegexValidator
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.tokens import default_token_generator
+from django_cleanup import cleanup
+from easy_thumbnails.fields import ThumbnailerImageField
 
 
 USER_TYPE_CHOICES = (
@@ -48,6 +50,7 @@ class UserManager(BaseUserManager):
         return self._create_user(email, password, **extra_fields)
 
 
+@cleanup.select
 class User(AbstractUser):
     REQUIRED_FIELDS = []
     objects = UserManager()
@@ -60,6 +63,9 @@ class User(AbstractUser):
     last_name = TitleField(verbose_name='Last name',
                            max_length=60)
     username = None
+    avatar = ThumbnailerImageField(verbose_name="Avatar", upload_to='users/avatars',
+                                   resize_source=dict(quality=100, size=(50, 50), sharpen=True),
+                                   blank=True)
     email = models.EmailField(unique=True)
     company = models.CharField(verbose_name='Company', max_length=40, blank=True)
     job_title = models.CharField(verbose_name='Job title', max_length=40, blank=True)
@@ -72,5 +78,3 @@ class User(AbstractUser):
         verbose_name = 'User'
         verbose_name_plural = 'Users'
         ordering = ('email',)
-
-

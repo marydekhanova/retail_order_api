@@ -6,26 +6,27 @@ from rest_framework import status, parsers, renderers
 from django.contrib.auth.tokens import default_token_generator
 from rest_framework.authtoken.models import Token
 from drf_spectacular.utils import extend_schema, OpenApiResponse
-from rest_framework.compat import coreapi, coreschema
-from rest_framework.schemas import coreapi as coreapi_schema
 from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.parsers import FileUploadParser
+from django.core.files.storage import FileSystemStorage
+from django.core.files import File
 
 from .serializers import (UserSerializer, UserUpdateSerializer,
                           PasswordResetTokenSerializer, PasswordResetSerializer,
                           PasswordUpdateSerialize, EmailUpdateSerialize,
                           EmailConfirmationSerialize, AuthTokenSerializer,
-                          ObtainAuthTokenSerializer)
+                          ObtainAuthTokenSerializer, AvatarSerializer)
 from .signals import reset_password, update_email
 from .permissions import IsAuthenticatedOrCreateOnly
 from retail_order_api.docs_responses import (response_unauthorized, DetailResponseSerializer,
                                              IncorrectDataSerializer)
+from .tasks import save_avatar
 
 
 User = get_user_model()
 
 
-@extend_schema(tags=["user"])
 class UserView(APIView):
     permission_classes = [IsAuthenticatedOrCreateOnly]
 
@@ -68,7 +69,6 @@ class UserView(APIView):
         return JsonResponse(serializer.data)
 
 
-@extend_schema(tags=["user"])
 class EmailConfirmation(APIView):
 
     @extend_schema(
@@ -99,7 +99,6 @@ class EmailConfirmation(APIView):
                 data={'token': 'Invalid confirmation token.'})
 
 
-@extend_schema(tags=["user"])
 class PasswordResetToken(APIView):
 
     @extend_schema(
@@ -125,7 +124,6 @@ class PasswordResetToken(APIView):
         return JsonResponse({"detail": f"Password reset token sent to {email}"})
 
 
-@extend_schema(tags=["user"])
 class PasswordReset(APIView):
 
     @extend_schema(
@@ -157,7 +155,6 @@ class PasswordReset(APIView):
                 data={'detail': 'Invalid password reset token.'})
 
 
-@extend_schema(tags=["user"])
 class PasswordUpdate(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -185,7 +182,6 @@ class PasswordUpdate(APIView):
         return HttpResponse(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["user"])
 class EmailUpdate(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -209,7 +205,6 @@ class EmailUpdate(APIView):
         return JsonResponse({"detail": f"Email confirmation token sent to {validated_data['email']}"})
 
 
-@extend_schema(tags=["user"])
 class CustomObtainAuthToken(ObtainAuthToken):
     serializer_class = AuthTokenSerializer
 
@@ -222,7 +217,6 @@ class CustomObtainAuthToken(ObtainAuthToken):
         return super().post(request, *args, **kwargs)
 
 
-@extend_schema(tags=["user"])
 class DeleteAuthToken(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -235,10 +229,34 @@ class DeleteAuthToken(APIView):
         return HttpResponse(status=status.HTTP_204_NO_CONTENT)
 
 
+class AvatarView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = (FileUploadParser,)
+
+    @extend_schema(
+        request=AvatarSerializer,
+        responses={status.HTTP_204_NO_CONTENT: OpenApiResponse(description='OK'),
+                   status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=IncorrectDataSerializer,
+                                                                description='Incorrect data.'),
+                   **response_unauthorized}
+    )
+    def patch(self, request, filename):
+        serializer = AvatarSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        image_file = serializer.validated_data['file']
+        storage = FileSystemStorage()
+        storage.save(image_file.name, File(image_file))
+        save_avatar.delay(request.user.id, storage.path(image_file.name), image_file.name)
+        return HttpResponse(status=status.HTTP_202_ACCEPTED)
 
 
+class AvatarDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
 
-
-
-
-
+    @extend_schema(
+        responses={status.HTTP_204_NO_CONTENT: OpenApiResponse(description='OK'),
+                   **response_unauthorized}
+    )
+    def delete(self, request):
+        request.user.avatar.delete()
+        return HttpResponse(status=status.HTTP_204_NO_CONTENT)

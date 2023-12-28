@@ -104,8 +104,9 @@ class CartPositionView(BuyerAPIView):
 
     @extend_schema(
         responses={status.HTTP_204_NO_CONTENT: OpenApiResponse(description='OK'),
-                   status.HTTP_404_NOT_FOUND: OpenApiResponse(response=DetailResponseSerializer,
-                                                              description='Product card is not in the cart.'),
+                   status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                       response=DetailResponseSerializer,
+                       description='Product card is not in the cart.'),
                    **responses_no_access}
     )
     def delete(self, request):
@@ -119,7 +120,8 @@ class CartPositionView(BuyerAPIView):
                 product_card=product_card)
         except CartPosition.DoesNotExist:
             return JsonResponse(
-                {"detail": f"Product card with id '{product_card.id}' is not in the cart."},
+                {"detail": f"Product card with id '{product_card.id}' "
+                           f"is not in the cart."},
                 status=status.HTTP_404_NOT_FOUND)
         cart_position.delete()
         return HttpResponse(status=status.HTTP_204_NO_CONTENT)
@@ -310,38 +312,3 @@ class AddressView(BuyerAPIView):
         address.is_active = False
         address.save(update_fields=['is_active'])
         return HttpResponse(status=status.HTTP_204_NO_CONTENT)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

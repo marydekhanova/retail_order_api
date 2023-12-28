@@ -5,6 +5,10 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMultiAlternatives
+from django.core.files.storage import FileSystemStorage
+from django.core.files import File
+from pathlib import Path
+from datetime import datetime
 
 
 User = get_user_model()
@@ -35,3 +39,15 @@ def send_reset_password_token_to_email_task(user_id):
         [user.email]
     )
     msg.send()
+
+
+@shared_task()
+def save_avatar(user_id, path, file_name):
+    user = User.objects.get(id=user_id)
+    storage = FileSystemStorage()
+    path_object = Path(path)
+    with path_object.open(mode='rb') as file:
+        avatar = File(file, name=f'{user_id}_{datetime.now()}')
+        user.avatar = avatar
+        user.save()
+    storage.delete(file_name)
