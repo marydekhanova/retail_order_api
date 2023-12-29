@@ -110,4 +110,8 @@ class ObtainAuthTokenSerializer(serializers.Serializer):
 
 
 class AvatarSerializer(serializers.Serializer):
-   file = serializers.ImageField()
+   image = serializers.ImageField()
+
+   def validate(self, data):
+      print(data)
+      return data

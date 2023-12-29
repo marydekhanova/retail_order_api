@@ -228,3 +228,12 @@ LOGOUT_REDIRECT_URL = 'products:products'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+
+
+THUMBNAIL_ALIASES = {
+    'products': {
+        'small': {'size': (100, 100)},
+        'medium': {'size': (640, 640)},
+        'large': {'size': (1000, 1000)}
+    }
+}

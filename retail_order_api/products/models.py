@@ -1,6 +1,8 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
+from easy_thumbnails.fields import ThumbnailerImageField
+from django_cleanup import cleanup
 
 from seller.models import Shop
 
@@ -102,6 +104,18 @@ class Parameter(models.Model):
 
     def __str__(self):
         return self.name
+
+
+def get_upload_path(instance, filename):
+    return 'shop_{0}/{1}'.format(instance.product_card.shop.id, filename)
+
+
+@cleanup.select
+class Image(models.Model):
+    product_card = models.ForeignKey(ProductCard,
+                                     related_name='images',
+                                     on_delete=models.CASCADE)
+    image = ThumbnailerImageField(upload_to=get_upload_path)
 
 
 class ProductParameter(models.Model):

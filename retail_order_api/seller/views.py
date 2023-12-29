@@ -2,31 +2,38 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 import requests
+from urllib3 import request
 from yaml import load as load_yaml, YAMLError
 from yaml.loader import SafeLoader
 from django.http import JsonResponse, HttpResponse
 from rest_framework import status
 from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from django.core.files.storage import FileSystemStorage
+from django.core.files import File
 
-from .permissions import IsSeller
+from .permissions import IsSeller, IsProductCardOwner
 from .serializers import (ShopPricesUrlSerializer, ShopPricesSerializer, ShopStatusSerializer,
-                          OrdersSerializer, OrdersItemSerializer, YamlErrorSerializer)
+                          OrdersSerializer, OrdersItemSerializer, YamlErrorSerializer,
+                          ImagesPostSerializer, ImagesDeleteSerializer)
 from products.models import Category, ProductCard, Product, Parameter, ProductParameter
 from buyer.models import Order, OrderPosition
 from .models import Shop
 from retail_order_api.docs_responses import (response_unauthorized, DetailResponseSerializer,
                                              IncorrectDataSerializer)
+from .tasks import save_images, delete_images
 
 
 responses_no_access = {**response_unauthorized,
-                       status.HTTP_403_FORBIDDEN: OpenApiResponse(response=DetailResponseSerializer,
-                                                                  description='The user is not a seller.'),
+                       status.HTTP_403_FORBIDDEN: OpenApiResponse(
+                           response=DetailResponseSerializer,
+                           description='The user is not a seller or '
+                                       'the object does not belong to the seller'),
                        }
 
 
 class SellerAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsSeller]
+    permission_classes = [IsAuthenticated, IsSeller, IsProductCardOwner]
 
     @property
     def user(self):
@@ -80,7 +87,7 @@ class ShopPrices(SellerAPIView):
                     product_card=product_card, parameter=parameter, defaults={'value': value}
                     )
 
-            return JsonResponse(validated_data)
+            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
         except YAMLError as exc:
             return JsonResponse(
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -122,7 +129,7 @@ class ShopStatus(SellerAPIView):
         return HttpResponse(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["seller's orders"])
+@extend_schema(tags=["shop"])
 class OrdersView(SellerAPIView):
 
     @extend_schema(
@@ -135,7 +142,7 @@ class OrdersView(SellerAPIView):
         return JsonResponse(serializer.data, safe=False)
 
 
-@extend_schema(tags=["seller's orders"])
+@extend_schema(tags=["shop"])
 class OrdersItemView(SellerAPIView):
 
     @extend_schema(
@@ -156,3 +163,55 @@ class OrdersItemView(SellerAPIView):
         order.seller_positions = seller_positions
         serializer = OrdersItemSerializer(order)
         return JsonResponse(serializer.data)
+
+
+@extend_schema(tags=["shop"])
+class ProductCardImage(SellerAPIView):
+
+    @extend_schema(
+        request=ImagesPostSerializer,
+        responses={status.HTTP_202_ACCEPTED: OpenApiResponse(description='Accepted.'),
+                   status.HTTP_404_NOT_FOUND: OpenApiResponse(response=DetailResponseSerializer,
+                                                              description='Product card not found.'),
+                   status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=IncorrectDataSerializer,
+                                                                description='Incorrect data.'),
+                   **responses_no_access}
+    )
+    def post(self, request, product_card_id):
+        try:
+            product_card = ProductCard.objects.get(id=product_card_id)
+        except ProductCard.DoesNotExist:
+            return JsonResponse({'detail': 'The product card does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+        self.check_object_permissions(request, obj=product_card)
+        images = request.FILES.getlist('images')
+        serializer = ImagesPostSerializer(data={'images': images})
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        storage = FileSystemStorage()
+        images_names = []
+        for image in validated_data['images']:
+            storage.save(image.name, File(image))
+            images_names.append(image.name)
+        save_images.delay(product_card_id, images_names)
+        return HttpResponse(status=status.HTTP_202_ACCEPTED)
+
+    @extend_schema(
+        request=ImagesDeleteSerializer,
+        responses={status.HTTP_202_ACCEPTED: OpenApiResponse(description='Accepted.'),
+                   status.HTTP_404_NOT_FOUND: OpenApiResponse(response=DetailResponseSerializer,
+                                                              description='Product card not found.'),
+                   status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=IncorrectDataSerializer,
+                                                                description='Incorrect data.'),
+                   **responses_no_access}
+    )
+    def delete(self, request, product_card_id):
+        try:
+            product_card = ProductCard.objects.get(id=product_card_id)
+        except ProductCard.DoesNotExist:
+            return JsonResponse({'detail': 'The product card does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+        self.check_object_permissions(request, obj=product_card)
+        serializer = ImagesDeleteSerializer(data=request.data, context={'product_card': product_card})
+        serializer.is_valid(raise_exception=True)
+        images_ids = [image.id for image in serializer.validated_data['images']]
+        delete_images.delay(images_ids)
+        return HttpResponse(status=status.HTTP_202_ACCEPTED)

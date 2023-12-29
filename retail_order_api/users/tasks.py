@@ -42,7 +42,7 @@ def send_reset_password_token_to_email_task(user_id):
 
 
 @shared_task()
-def save_avatar(user_id, path, file_name):
+def save_avatar(user_id, path, image_name):
     user = User.objects.get(id=user_id)
     storage = FileSystemStorage()
     path_object = Path(path)
@@ -50,4 +50,4 @@ def save_avatar(user_id, path, file_name):
         avatar = File(file, name=f'{user_id}_{datetime.now()}')
         user.avatar = avatar
         user.save()
-    storage.delete(file_name)
+    storage.delete(image_name)

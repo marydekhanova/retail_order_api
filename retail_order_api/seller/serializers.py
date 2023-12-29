@@ -1,10 +1,9 @@
 from rest_framework import serializers
 import requests
 
-from products.models import Category, ProductCard
+from products.models import Category, ProductCard, Image
 from buyer.models import OrderPosition, Order, Address
 from .models import Shop
-
 
 class ShopPricesUrlSerializer(serializers.Serializer):
     url = serializers.URLField()
@@ -84,3 +83,22 @@ class OrdersItemSerializer(serializers.ModelSerializer):
 
 class YamlErrorSerializer(serializers.Serializer):
     yaml_error = serializers.CharField()
+
+
+class ImagesPostSerializer(serializers.Serializer):
+    images = serializers.ListField(child=serializers.ImageField(), min_length=1, max_length=6)
+
+
+class ImagesDeleteSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ProductCard
+        fields = ('images',)
+
+    def validate_images(self, images):
+        product_card = self.context['product_card']
+        for image in images:
+            if image.product_card != product_card:
+                raise serializers.ValidationError(
+                    f"The image with id '{image.id}' does not belong to the product card")
+        return images

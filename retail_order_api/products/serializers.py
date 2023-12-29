@@ -16,4 +16,4 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductCard
-        fields = ('id', 'name', 'description', 'shop', 'parameters', 'price', 'quantity')
+        fields = ('id', 'name', 'description', 'shop', 'parameters', 'price', 'quantity', 'images')

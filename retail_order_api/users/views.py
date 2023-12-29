@@ -8,7 +8,7 @@ from rest_framework.authtoken.models import Token
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.parsers import FileUploadParser
+from rest_framework.parsers import MultiPartParser
 from django.core.files.storage import FileSystemStorage
 from django.core.files import File
 
@@ -231,22 +231,24 @@ class DeleteAuthToken(APIView):
 
 class AvatarView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = (FileUploadParser,)
+    parser_classes = (MultiPartParser,)
 
     @extend_schema(
         request=AvatarSerializer,
-        responses={status.HTTP_204_NO_CONTENT: OpenApiResponse(description='OK'),
+        responses={status.HTTP_202_ACCEPTED: OpenApiResponse(description='Accepted.'),
                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=IncorrectDataSerializer,
                                                                 description='Incorrect data.'),
                    **response_unauthorized}
     )
-    def patch(self, request, filename):
-        serializer = AvatarSerializer(data=request.data)
+    def patch(self, request):
+        if len(request.FILES.getlist('image')) > 1:
+            return JsonResponse({'detail': 'Only one image.'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = AvatarSerializer(data=request.FILES)
         serializer.is_valid(raise_exception=True)
-        image_file = serializer.validated_data['file']
+        image = serializer.validated_data['image']
         storage = FileSystemStorage()
-        storage.save(image_file.name, File(image_file))
-        save_avatar.delay(request.user.id, storage.path(image_file.name), image_file.name)
+        storage.save(image.name, File(image))
+        save_avatar.delay(request.user.id, storage.path(image.name), image.name)
         return HttpResponse(status=status.HTTP_202_ACCEPTED)
 
 
